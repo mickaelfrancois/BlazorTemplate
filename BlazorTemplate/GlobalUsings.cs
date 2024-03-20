@@ -1,0 +1,13 @@
+﻿global using Ardalis.GuardClauses;
+global using Blazor.Application.Users.Models;
+global using Blazor.Domain;
+global using BlazorTemplate;
+global using BlazorTemplate.Components;
+global using FluentResults;
+global using FluentValidation;
+global using static Blazor.Shared.Extensions.StringExtensions;
+global using Blazor.Application;
+global using MudBlazor;
+global using Blazor.Shared.Configurations;
+global using FluentValidation.Results;
+global using Blazor.Infrastructure;

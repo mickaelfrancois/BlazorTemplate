@@ -1,0 +1,93 @@
+﻿@using BlazorTemplate.Services.Layout
+@using BlazorTemplate.Services.Preferences
+@using BlazorTemplate.Themes
+@inherits LayoutComponentBase
+
+<MudThemeProvider @ref="@_mudThemeProvider" Theme="@Theme.ApplicationTheme()" IsDarkMode="@LayoutService.IsDarkMode" IsDarkModeChanged="@LayoutService.SetDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <HeaderMenu/>
+    <MudDrawer Width="200px" Open="true" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu/>
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mb-4 mt-4">
+            <ErrorBoundary @ref="_errorBoundary">
+                        <ChildContent>
+                                @Body
+                        </ChildContent>
+                        <ErrorContent Context="exception">
+                            <CustomError Exception="exception"></CustomError>
+                        </ErrorContent>
+                    </ErrorBoundary>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code{
+    private ErrorBoundary? _errorBoundary { set; get; }
+
+    [Inject]
+    private LayoutService LayoutService { get; set; } = null!;
+
+    private UserPreferences _userPreferences = new();
+
+    private MudThemeProvider _mudThemeProvider = null!;
+
+    private bool _defaultDarkMode;
+
+
+    protected override void OnParametersSet()
+    {
+        ResetBoundary();
+    }
+
+
+    private void ResetBoundary()
+    {
+        _errorBoundary?.Recover();
+    }
+
+
+    protected override void OnInitialized()
+    {
+        LayoutService.MajorUpdateOccured += LayoutServiceOnMajorUpdateOccured;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await ApplyUserPreferences();
+            await _mudThemeProvider.WatchSystemPreference(OnSystemPreferenceChanged);
+            StateHasChanged();
+        }
+    }
+
+
+    private async Task ApplyUserPreferences()
+    {
+        _defaultDarkMode = await _mudThemeProvider.GetSystemPreference();
+        _userPreferences = await LayoutService.ApplyUserPreferences(_defaultDarkMode);
+    }
+
+
+    private async Task OnSystemPreferenceChanged(bool newValue)
+    {
+        await LayoutService.OnSystemPreferenceChanged(newValue);
+    }
+
+
+    private void LayoutServiceOnMajorUpdateOccured(object? sender, EventArgs e) => StateHasChanged();
+
+
+    public void Dispose()
+    {
+        LayoutService.MajorUpdateOccured -= LayoutServiceOnMajorUpdateOccured;
+        GC.SuppressFinalize(this);
+    }
+}

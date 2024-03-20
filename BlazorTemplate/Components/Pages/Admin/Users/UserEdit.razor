@@ -1,0 +1,166 @@
+﻿@page "/admin/users/{id:int}/edit"
+@using Blazor.Application.Roles.Models
+@using Blazor.Application.Roles.Queries.GetRoles
+@using Blazor.Application.Users.Commands.DeleteUser
+@using Blazor.Application.Users.Commands.UpdateUser
+@using Blazor.Application.Users.Queries.GetUserById
+@using BlazorTemplate.Models.User
+
+@attribute [Authorize(Roles = "admin")]
+
+<MudText Typo="Typo.h4" Class="mt-4"><MudIcon Icon="@Icons.Material.Filled.Person"></MudIcon> Edit user</MudText>
+<MudForm Model="@_formModel" @ref="@_form" @bind-IsValid="@_success" ValidationDelay="0" Validation="@(UserEditValidator.ValidateValue)">
+    <MudCard Class="edit-form">
+        <MudCardContent>
+            <MudTextField Label="UserName" @bind-Value="_formModel.UserName" For="@(() => _formModel.UserName)" />
+            <MudTextField Label="Email" @bind-Value="_formModel.Email" For="@(() => _formModel.Email)" />
+            <MudCheckBox Label="Lockout" @bind-Value="_formModel.LockoutEnabled" For="@(() => _formModel.LockoutEnabled)"></MudCheckBox>
+            <MudText Typo="Typo.h6" Class="mt-8">Roles</MudText>
+            <MudDataGrid T="RoleDto"
+                         SelectedItems="_selectedRoles"
+                         MultiSelection="true"
+                         ShowColumnOptions="false"
+                         Items="@_roles"
+                         SortMode="SortMode.Multiple">
+                <Columns>
+                    <SelectColumn T="RoleDto" />
+                    <PropertyColumn Property="x => x.Name" Title="Roles" />
+                </Columns>
+            </MudDataGrid>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Large"
+                       Disabled="@(_loading)"
+                       ButtonType="ButtonType.Button"
+                       OnClick="@(OnSubmit)"
+                       Class="mt-8">
+
+                @if (_loading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2"> Loading</MudText>
+                }
+                else
+                {
+                    <MudText>Save</MudText>
+                }
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Error"
+                       Size="Size.Large"
+                       Disabled="@(_loading)"
+                       ButtonType="ButtonType.Button"
+                       OnClick="@(OnDelete)"
+                       Class="mt-8 ml-10">
+                <MudText>Delete</MudText>
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+</MudForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    [Inject]
+    private UserEditFormModelValidator UserEditValidator { get; set; } = null!;
+
+    [Inject]
+    public IDialogService Dialog { get; set; } = null!;
+
+    private MudForm? _form;
+
+    private bool _success;
+
+    private bool _loading;
+
+    private UserEditFormModel _formModel = new();
+
+    private UserVm? _user = null!;
+
+    private List<RoleDto> _roles = [];
+
+    private HashSet<RoleDto> _selectedRoles = new();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var roles = await Mediator.Send(new GetRolesQuery());
+        _roles = roles.ToList();
+
+        Result<UserVm> resultUser =await Mediator.Send(new GetUserByIdQuery(Id));
+
+        if (resultUser.IsSuccess)
+        {
+            _user = resultUser.Value;
+            _formModel.UserName = _user.Name;
+            _formModel.Email = _user.Email;
+            _formModel.LockoutEnabled = _user.LockoutEnabled;
+
+            foreach (RoleDto role in _roles)
+            {
+                if (_user.Roles.Exists(c => c.RoleId == role.RoleId))
+                    _selectedRoles.Add(role);
+            }
+        }
+        else
+        {
+            Snackbar.Add("User was not found!", MudBlazor.Severity.Error);
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+
+    private async Task OnSubmit()
+    {
+        try
+        {
+            _loading = true;
+
+            await _form!.Validate();
+
+            if (_form!.IsValid == false)
+                return;
+
+            List<int> rolesIds = _selectedRoles.Select(c => c.RoleId).ToList();
+
+            await Mediator.Send(new UpdateUserCommand(_user!.Id, _formModel.UserName!, _formModel.Email!, _formModel.LockoutEnabled, rolesIds));
+
+            NavigationManager.NavigateTo("/admin/users");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+
+    private async Task OnDelete()
+    {
+        try
+        {
+            _loading = true;
+
+            MessageBoxOptions messageBoxOptions = new();
+            messageBoxOptions.CancelText = "Cancel";
+            messageBoxOptions.YesText = "Yes";
+            messageBoxOptions.Title = "Confirm";
+            messageBoxOptions.Message = "Do you want to delete this user?";
+
+            bool? result = await Dialog.ShowMessageBox(messageBoxOptions);
+
+            if (result.GetValueOrDefault())
+            {
+                await Mediator.Send(new DeleteUserCommand(_user!.Id));
+
+                NavigationManager.NavigateTo("/admin/users");
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

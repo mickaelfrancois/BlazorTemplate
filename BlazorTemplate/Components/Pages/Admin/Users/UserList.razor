@@ -1,0 +1,54 @@
+﻿@page "/admin/users"
+@using Blazor.Application.Users.Queries.GetUsers
+
+@attribute [Authorize(Roles = "admin")]
+
+<MudText Typo="Typo.h3">Users</MudText>
+
+<MudTable Items="@_users" Bordered="true" Striped="true" Hover="true" Dense="true">
+    <ColGroup>
+        <col style="width:60px;" />
+        <col />
+        <col />
+        <col style="width: 60px;" />
+    </ColGroup>
+    <HeaderContent>
+        <MudTh>State</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="State">
+            @if (context.LockoutEnabled)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.DoNotDisturb" Title="disable" Color="Color.Error"></MudIcon>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary"></MudIcon>
+            }
+        </MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>        
+        <MudTd DataLabel="Actions">
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert">
+                <MudMenuItem OnClick="@(()=>OnEdit(context.Id))">Edit</MudMenuItem>               
+            </MudMenu>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private IEnumerable<UserDto> _users = new List<UserDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await Mediator.Send(new GetUsersQuery());
+    }
+
+    private void OnEdit(int id)
+    {
+        NavigationManager.NavigateTo($"/admin/users/{id}/edit");
+    }
+}

@@ -1,0 +1,57 @@
+﻿@using BlazorTemplate.Services.Layout
+<MudAppBar Elevation="1">
+    <MudImage Src="favicon.png" Width="64" Height="64"></MudImage>
+    <MudText Typo="Typo.h4">Application</MudText>
+    <MudSpacer></MudSpacer>
+
+    <MudToggleIconButton Icon="@Icons.Material.Filled.DarkMode" ToggledIcon="@Icons.Material.Filled.LightMode" ToggledChanged="OnToggledChanged">
+
+    </MudToggleIconButton>
+
+    <AuthorizeView>
+        <Authorized>
+            <UserMenu />
+        </Authorized>
+        <NotAuthorized>
+            <MudButton OnClick="@Login"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Login"
+                       Color="Color.Info"
+                       Class="mr-4">
+                Login
+            </MudButton>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudAppBar>
+
+
+@code
+{
+    [Inject]
+    private CustomAuthenticationStateProviders _authProvider { get; set; } = null!;
+
+    [Inject]
+    private LayoutService LayoutService { get; set; } = null!;
+
+
+    private void Login()
+    {
+        NavigationManager.NavigateTo("/account/login", false);
+    }
+
+    private void Register()
+    {
+        NavigationManager.NavigateTo("/register", false);
+    }
+
+    private async Task Logout()
+    {
+        await _authProvider.LogoutAsync();
+        StateHasChanged();
+    }
+
+    public async Task OnToggledChanged(bool toggled)
+    {
+        await LayoutService.ToggleDarkMode();
+    }
+}

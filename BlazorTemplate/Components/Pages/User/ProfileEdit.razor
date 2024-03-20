@@ -1,0 +1,184 @@
+﻿@page "/profile/edit"
+@using Blazor.Application.Models
+@using Blazor.Application.Users.Commands.UpdatePassword
+@using Blazor.Application.Users.Commands.UpdateProfile
+@using Blazor.Application.Users.Commands.UpdateUser
+@using Blazor.Application.Users.Queries.GetUserById
+@using BlazorTemplate.Models.User
+
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" Class="mt-4"><MudIcon Icon="@Icons.Material.Filled.Person"></MudIcon> Profile</MudText>
+
+<MudTabs Outlined="true" Position="Position.Top" Rounded="true" Border="true" Elevation="6" ApplyEffectsToContainer="true" Class="mt-8" PanelClass="pa-6">
+    <MudTabPanel Text="Profile">
+        <MudForm Model="@_formModel" @ref="@_form" Validation="@(ProfilEditValidator.ValidateValue)" Style="display: flex; align-content: left;  align-items: center; flex-direction: column;">
+            <MudGrid Justify="Justify.FlexStart" Style="max-width:600px;display:flex;">
+                <MudItem sm="12" xs="12">
+                    <MudItem sm="6" xs="12">
+                        <MudTextField @bind-Value="_formModel.UserName" For="@(() => _formModel.UserName)"
+                                      Variant="Variant.Outlined"
+                                      Label="Username"
+                                      Required="true"
+                                      OnlyValidateIfDirty="true">
+                        </MudTextField>
+                    </MudItem>
+                    <MudItem sm="6" xs="12">
+                        <MudTextField @bind-Value="_formModel.Email" For="@(() => _formModel.Email)"
+                                      Variant="Variant.Outlined"
+                                      Label="Email"
+                                      Required="true"
+                                      OnlyValidateIfDirty="true">
+                        </MudTextField>
+                    </MudItem>
+                    <MudItem sm="12" xs="12" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_loading)" ButtonType="ButtonType.Button" OnClick="@(OnSubmitAsync)" Class="ml-auto">
+                            @if (_loading)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                <MudText Class="ms-2"> Waiting</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Save</MudText>
+                            }
+                        </MudButton>
+                    </MudItem>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Change password">
+        <MudForm Model="@_changePassword" @ref="@_passwordForm" Validation="@(ProfilUpdatePasswordValidator.ValidateValue)" Style="display: flex; align-content: center;  align-items: center; flex-direction: column;">
+            <MudGrid Justify="Justify.Center" Style="max-width:300px">
+                <MudItem sm="12" xs="12">
+                    <MudTextField @bind-Value="_changePassword.CurrentPassword" For="@(() => _changePassword.CurrentPassword)" Variant="Variant.Outlined" InputType="@_currentPasswordInput" Label="Current password" Required="true"></MudTextField>
+                </MudItem>
+                <MudItem sm="12" xs="12">
+                    <MudTextField @bind-Value="_changePassword.NewPassword" For="@(() => _changePassword.NewPassword)" Variant="Variant.Outlined" InputType="@_newPasswordInput" Label="New password" Required="true"></MudTextField>
+                </MudItem>
+                <MudItem sm="12" xs="12">
+                    <MudTextField @bind-Value="_changePassword.ConfirmPassword" For="@(()=> _changePassword.ConfirmPassword)" Variant="Variant.Outlined" InputType="@_confirmPasswordInput" Label="Confirm password" Required="true"></MudTextField>
+                </MudItem>                            
+                <MudItem sm="12" xs="12" Class="d-flex justify-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_loading)" ButtonType="ButtonType.Button" OnClick="@(ChangePasswordAsync)" Class="ml-auto">
+                        @if (_loading)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true"/>
+                            <MudText Class="ms-2"> Waiting</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Change password</MudText>
+                        }
+                    </MudButton>
+                 </MudItem>
+            </MudGrid>
+        </MudForm>
+    </MudTabPanel>
+</MudTabs>
+
+@code
+{
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    [Inject]
+    private ILogger<ProfileEdit> Logger { get; set; } = null!;
+
+    [Inject]
+    private ProfilEditFormModelValidator ProfilEditValidator { get; set; } = null!;
+
+    [Inject]
+    private ProfileUpdatePasswordFormModelValidator ProfilUpdatePasswordValidator { get; set; } = null!;
+
+    private MudForm? _form;
+
+    private MudForm? _passwordForm;
+
+    private ProfilEditFormModel _formModel = new();
+
+    private ProfileUpdatePasswordFormModel _changePassword = new();
+
+    private InputType _currentPasswordInput = InputType.Password;
+
+    private InputType _newPasswordInput = InputType.Password;
+
+    private InputType _confirmPasswordInput = InputType.Password;
+
+    private UserProfile? _userProfile = null;
+
+    private bool _loading;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState state = await AuthState;
+        _userProfile = state.User.GetUserProfileFromClaim();
+
+        Result<UserVm> result = await Mediator.Send(new GetUserByIdQuery(_userProfile.Id));
+
+        if (result.IsSuccess)
+        {
+            _formModel.UserName = result.Value.Name;
+            _formModel.Email = result.Value.Email;
+        }
+        else
+        {
+            Logger.LogError("User '{name}' try to edit hist profile but account was not found!", _userProfile.Name);
+            Snackbar.Add("User was not found!", MudBlazor.Severity.Error);
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+
+    private async Task OnSubmitAsync()
+    {
+        try
+        {
+            _loading = true;
+
+            await _form!.Validate();
+
+            if (_form!.IsValid == false)
+                return;
+
+            await Mediator.Send(new UpdateProfileCommand(_userProfile!.Id, _formModel.UserName!, _formModel.Email!));
+
+            NavigationManager.NavigateTo("/");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+
+
+    private async Task ChangePasswordAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            await _passwordForm!.Validate();
+            if (_passwordForm!.IsValid)
+            {
+                Result result =  await Mediator.Send(new UpdatePasswordCommand(_userProfile!.Id, _changePassword.CurrentPassword, _changePassword.NewPassword));
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add("Changed password successfully.", Severity.Info);                    
+                }
+                else
+                {
+                    Snackbar.Add(string.Join(",", result.Errors.Select(x => x.Message).ToArray()), Severity.Error);
+                }           
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

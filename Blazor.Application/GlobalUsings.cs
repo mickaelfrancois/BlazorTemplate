@@ -1,0 +1,12 @@
+﻿global using Ardalis.GuardClauses;
+global using Blazor.Application.Security;
+global using Blazor.Application.Users.Models;
+global using Blazor.Domain;
+global using FluentResults;
+global using MediatR;
+global using SqlKata.Execution;
+global using System.Text;
+global using Blazor.Application.Interfaces;
+global using Blazor.Infrastructure.Mail;
+global using FluentEmail.Core.Models;
+global using System.Security.Claims;

@@ -1,0 +1,10 @@
+global using Blazor.Application.UserRoles.Models;
+global using Blazor.Application.Users.Models;
+global using Blazor.Domain;
+global using BlazorApplication.UnitTests.Fixtures;
+global using FluentResults;
+global using Microsoft.Data.Sqlite;
+global using SqliteFrameworkForUnitTests;
+global using SqlKata.Compilers;
+global using SqlKata.Execution;
+global using Xunit;

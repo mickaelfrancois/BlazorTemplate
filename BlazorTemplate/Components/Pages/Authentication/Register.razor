@@ -1,0 +1,174 @@
+﻿@page "/register"
+
+@attribute [AllowAnonymous]
+
+<MudForm Model="@_formModel" @ref="@_form" @bind-IsValid="@_success" ValidationDelay="0" Validation="@(RegisterValidator.ValidateValue)">
+    <MudText Typo="Typo.h4" GutterBottom="true">Register</MudText>
+    <MudText>
+        Already have an account? <MudLink Href="/account/login">Sign In</MudLink>
+    </MudText>
+
+    <MudTextField @bind-Value="_formModel.UserName" For="@(() => _formModel.UserName)"
+                  Variant="Variant.Outlined"
+                  Label="Username"
+                  Required="true"
+                  OnlyValidateIfDirty="true"
+                  Immediate="true"
+                  Class="my-6">
+    </MudTextField>
+    <MudTextField @bind-Value="_formModel.Email" For="@(() => _formModel.Email)"
+                  Variant="Variant.Outlined"
+                  Label="Email"
+                  Required="true"
+                  OnlyValidateIfDirty="true"
+                  Immediate="true"
+                  Class="my-6">
+    </MudTextField>
+    <MudTextField @bind-Value="_formModel.Password" For="@(() => _formModel.Password)"
+                  Variant="Variant.Outlined"
+                  InputType="@_passwordInput"
+                  Label="Password"
+                  Required="true">
+    </MudTextField>
+    <MudTextField @bind-Value="_formModel.ConfirmPassword" For="@(() => _formModel.ConfirmPassword)"
+                  Variant="Variant.Outlined"
+                  InputType="@_confirmPasswordInput"
+                  Label="Confirm password"
+                  Required="true">
+    </MudTextField>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               Size="Size.Large"
+               Disabled="@(_loading)"
+               ButtonType="ButtonType.Button"
+               OnClick="@(OnSubmitAsync)"
+               Class="mt-8"
+               FullWidth="true">
+        @if (_loading)
+        {
+            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            <MudText Class="ms-2"> Loading</MudText>
+        }
+        else
+        {
+            <MudText>Register</MudText>
+        }
+
+    </MudButton>
+</MudForm>
+
+@code {
+    [Inject]
+    private CustomAuthenticationStateProviders _authProvider { get; set; } = null!;
+
+    [Inject]
+    private RegisterFormModelValidator RegisterValidator { get; set; } = null!;
+
+    [Inject]
+    private IMailService MailService { get; set; } = null!;
+
+    [Inject]
+    private ITokenGeneratorService TokenGenerator { get; set; } = null!;
+
+
+    private InputType _passwordInput = InputType.Password;
+
+    private InputType _confirmPasswordInput = InputType.Password;
+
+    private MudForm? _form;
+
+    private RegisterFormModel _formModel = new();
+
+    private bool _success;
+
+    private bool _loading;
+
+
+    public async Task OnSubmitAsync()
+    {
+        try
+        {
+            _loading = true;
+
+            await _form!.Validate();
+
+            if (_form!.IsValid == false)
+                return;
+
+            Result result = await RegisterUser();
+
+            if (result.IsSuccess)
+            {
+                await HandleRegisterSuccess();
+            }
+            else
+            {
+                HandleRegisterError(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            HandleRegisterError(Result.Fail(ex.Message));
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+
+    private async Task<Result> RegisterUser()
+    {
+        Claim[] claims = new Claim[]
+            {
+                new (ClaimTypes.Name, _formModel.UserName!),
+                new (ClaimTypes.Sid, _formModel.Email!.ToString()),
+            };
+        
+        ClaimsPrincipal claimPrincipal = new(new ClaimsIdentity(claims, "CustomAuth"));
+        string token = TokenGenerator.GenerateConfirmToken(claimPrincipal);
+
+        Result<int> result = await Mediator.Send(new RegisterUserCommand(_formModel.UserName!, _formModel.Password!, _formModel.Email!, token));
+
+        if(result.IsSuccess)
+            result = await SendWelcomeMailAsync(token);
+
+        return result.ToResult();
+    }
+
+
+    private async Task<Result> SendWelcomeMailAsync(string token)
+    {        
+        Uri validationUrl = new Uri(new Uri(NavigationManager.BaseUri), $"account/verify/{token}");
+
+        SendResponse? sendMailResult = await MailService.SendAsync(_formModel.Email!, "Confirm your account email", "_welcome",
+                                                            new
+                                                            {
+                                                                AppName = "BlazorAuth",
+                                                                UserName = _formModel.UserName!,
+                                                                Email = _formModel.Email!,
+                                                                ValidationUrl = validationUrl.ToString(),
+                                                                BaseUrl = NavigationManager.BaseUri
+                                                            });
+
+        if (sendMailResult.Successful)
+            return Result.Ok();
+        else
+            return Result.Fail(sendMailResult.ErrorMessages.First());
+    }
+
+
+    private async Task HandleRegisterSuccess()
+    {
+        Snackbar.Add("Register successfully!", MudBlazor.Severity.Info);
+        await _authProvider.LoginAsync(_formModel.UserName!, _formModel!.Password!);
+        NavigationManager.NavigateTo("/");
+    }
+
+
+    private void HandleRegisterError(Result result)
+    {
+        Snackbar.Add(result.Errors.First().Message, MudBlazor.Severity.Error);
+    }
+}

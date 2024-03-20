@@ -1,0 +1,13 @@
+﻿global using Blazor.Application.Interfaces;
+global using FluentEmail.Core;
+global using FluentEmail.Core.Models;
+global using Microsoft.Extensions.Logging;
+global using System.Reflection;
+global using Ardalis.GuardClauses;
+global using Blazor.Shared.Configurations;
+global using Blazor.Infrastructure.Mail;
+global using Microsoft.Extensions.Options;
+global using Microsoft.IdentityModel.Tokens;
+global using System.IdentityModel.Tokens.Jwt;
+global using System.Security.Claims;
+global using System.Text;

@@ -1,0 +1,20 @@
+﻿@layout MainLayout
+@inherits LayoutComponentBase
+
+<MudLayout>
+    <AuthorizeView>
+        <NotAuthorized>
+            <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 80vh;">
+                <div class="d-flex flex-column mud-width-full">
+                    <MudPaper Elevation="25" Class="pa-8" Width="100%" MaxWidth="500px">
+                        <MudImage Src="favicon.png" Width="64" Height="64"></MudImage>
+                        @Body
+                    </MudPaper>
+                </div>
+            </MudContainer>
+        </NotAuthorized>
+        <Authorized>
+            <RedirectToHome />
+        </Authorized>
+    </AuthorizeView>
+</MudLayout>

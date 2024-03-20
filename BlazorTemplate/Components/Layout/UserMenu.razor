@@ -1,0 +1,120 @@
+﻿@using Blazor.Application.Interfaces
+
+<MudTooltip Arrow="true" Text="User">
+    <MudMenu AnchorOrigin="Origin.BottomRight"
+             Color="Color.Inherit"
+             Icon="@Icons.Material.Filled.PermIdentity"
+             Class="mx-1"
+             LockScroll="true"             
+             TransformOrigin="Origin.TopRight">
+        <ActivatorContent>
+             <MudAvatar Color="Color.Primary" Rounded="false">
+                @if (_avatarUrl is not null)
+                {
+                    <MudImage Src="@_avatarUrl"></MudImage>
+                }
+                else
+                {
+                    @AuthProvider.CurrentUser.Name.ToUpper().First()
+                }
+            </MudAvatar>            
+        </ActivatorContent>
+        <ChildContent>
+            <div class="pb-4"
+                 style="min-width: 260px;margin-bottom:0px!important">
+                    <MudStack Row="true" Class="ma-4">
+
+                    @if (_avatarUrl is not null)
+                    {
+                        <MudAvatar Color="Color.Primary" Rounded="false">
+                            <MudImage Src="@_avatarUrl"></MudImage>
+                        </MudAvatar>
+                    }
+                    else
+                    {
+                        <MudAvatar Color="Color.Primary">
+                            @AuthProvider.CurrentUser.Name.ToUpper().First()
+                        </MudAvatar>
+                    }
+                  
+                    <MudStack Justify="Justify.SpaceBetween" Spacing="0">
+                        <MudText Typo="Typo.body1">@AuthProvider.CurrentUser.Name</MudText>
+                            <MudText Typo="Typo.body2">@AuthProvider.CurrentUser.Email</MudText>
+                        </MudStack>
+                    </MudStack>
+
+                    <MudMenuItem HRef="/profile/edit">
+                        <div class="d-flex">
+                            <MudIcon Class="mx-2"
+                                     Icon="@Icons.Material.Filled.Person" />
+                            <MudText>Profile</MudText>
+                        </div>
+                    </MudMenuItem>
+
+                    <MudMenuItem HRef="/profile/changepassword">
+                        <div class="d-flex">
+                            <MudIcon Class="mx-2"
+                                     Icon="@Icons.Material.Filled.Password" />
+                            <MudText>Change password</MudText>
+                        </div>
+                    </MudMenuItem>
+
+                    <MudDivider Class="my-2" />
+
+                    <AuthorizeView Roles="admin">
+                        <Authorized>
+                            <MudMenuItem HRef="/admin/users">
+                                <div class="d-flex">
+                                    <MudIcon Class="mx-2"
+                                             Icon="@Icons.Material.Filled.SupervisedUserCircle" />
+                                    <MudText>Users</MudText>
+                                </div>
+                            </MudMenuItem>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <MudDivider Class="my-2" />
+                    <div class="mt-4 mx-4">
+                        <MudButton Color="Color.Default"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Logout"
+                                   OnClick="Logout"
+                                   Variant="Variant.Outlined">
+                            Logout
+                        </MudButton>
+                    </div>
+                </div>
+            </ChildContent>
+        </MudMenu>
+</MudTooltip>
+
+
+    @code {
+    [Inject]
+    private IGravatarService Gravatar { get; set; } = null!;
+
+    [Inject]
+    private CustomAuthenticationStateProviders AuthProvider { get; set; } = null!;
+
+    private string _avatarUrl = string.Empty;
+
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _avatarUrl = Gravatar.GetUserUrlProfile(AuthProvider.CurrentUser.Email);
+
+            StateHasChanged();
+        }
+    }
+
+
+    private async Task Logout()
+    {
+        await AuthProvider.LogoutAsync();
+        StateHasChanged();
+
+        NavigationManager.NavigateTo("/");
+    }
+}

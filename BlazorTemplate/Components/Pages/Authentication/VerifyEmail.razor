@@ -1,0 +1,52 @@
+﻿@page "/account/verify/{Token}"
+
+@attribute [AllowAnonymous]
+
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    [Inject]
+    private TokenValidatorService TokenValidator { get; set; } = null!;
+
+    [Inject]
+    private ILogger<VerifyEmail> Logger { get; set; } = null!;
+
+    [Inject]
+    private IDialogService DialogService { get; set; } = null!;
+
+
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        Result<ClaimsIdentity> resultToken = await TokenValidator.ValidateConfirmEmailTokenAsync(Token);
+        if (resultToken.IsFailed)
+        {
+            ShowMessageBox("Invalid or expired token!", "Error");
+            return;
+        }
+
+
+        Result<UserDto> resultUser = await Mediator.Send(new GetUserByVerifyTokenQuery(Token));
+        if (resultUser.IsFailed)
+        {
+            ShowMessageBox("User was not found!", "Error");
+            return;
+        }
+
+        Logger.LogInformation("User '{userName}' confirmed his email", resultToken.Value.Name);
+
+        await Mediator.Send(new ValidateUserCommand(resultUser.Value.Id));
+
+        ShowMessageBox("Thank you, your email has been confirmed!", "Success");
+        NavigationManager.NavigateTo("/");
+    }
+
+
+    private async void ShowMessageBox(string message, string title)
+    {
+        bool? result = await DialogService.ShowMessageBox(title, message, yesText: "Ok");
+    }
+}
